@@ -53,6 +53,11 @@ export class UI {
 
   setHint(t) { $('hint').textContent = t; }
 
+  setAction(label) {
+    const el = $('action-btn');
+    if (el.textContent !== label) el.textContent = label;
+  }
+
   setPull(v) {
     const el = $('pull');
     el.classList.toggle('show', v > 0.001);

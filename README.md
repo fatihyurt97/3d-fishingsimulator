@@ -24,12 +24,13 @@ Mac ve iPad aynı Wi-Fi'de olmalı. Mac'in IP'sini bulun (Sistem Ayarları → W
 
 | Eylem | iPad / iPhone (dokunmatik) | Mac (fare) | Klavye |
 |---|---|---|---|
-| Olta at | Ekranda **aşağı çek**, güç çubuğu dolar, **bırak** | Aynısı, fare ile | **Boşluk** basılı tut, bırak |
-| Yön ayarla | Çekerken sağa/sola kaydır | Aynısı | Ok tuşları |
-| Vur (ısırık anında) | Dokun | Tıkla | Boşluk |
-| Makara çek | Basılı tut | Basılı tut | Boşluk basılı tut |
-| Yemi geri çek / sürükle | Bekleme sırasında basılı tut | Aynısı | Boşluk basılı tut |
-| Yem değiştir | Sol alttaki yem kutusu | Aynısı | — |
+| Yürü (iskelede) | Sol alttaki **İleri / Geri / Sol / Sağ** butonları (basılı tut) | Aynısı | **W / S / A / D** |
+| Nişan | Sağ alttaki **Yön ◀ / Yön ▶** butonları | Aynısı | Ok tuşları ← → |
+| Olta at | Sağdaki büyük **AT** butonunu basılı tut (güç dolar), bırak | Aynısı; ya da ekranda aşağı çek, bırak | **Boşluk** basılı tut, bırak |
+| Vur (ısırık anında) | **VUR!** yazan butona dokun | Tıkla / Boşluk | Boşluk |
+| Makara çek | **MAKARA** butonunu basılı tut | Aynısı | Boşluk basılı tut |
+| Yemi geri çek / sürükle | **ÇEK** butonunu basılı tut | Aynısı | Boşluk basılı tut |
+| Yem değiştir | Sol üstteki yem kutusu | Aynısı | — |
 | Menü | Sağ üst düğmeler | Aynısı | Esc: kapat |
 
 ## Nasıl oynanır?

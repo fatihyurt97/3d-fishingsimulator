@@ -2,10 +2,17 @@ import { World } from './world.js';
 import { FishPond } from './fish.js';
 import { Fishing } from './fishing.js';
 import { UI } from './ui.js';
-import { createInput } from './input.js';
+import { createInput, bindHold } from './input.js';
+import { buildAvatar } from './avatar.js';
 import { loadSave, writeSave, clearSave, hasSave, defaultSave } from './save.js';
 import { sfx, unlock, setEnabled, setRain } from './audio.js';
-import { BAITS, RODS, SPECIES, START_HOUR } from './config.js';
+import { BAITS, RODS, SPECIES, START_HOUR, DOCK } from './config.js';
+
+const WALK_SPEED = 2.4;                         // m/s
+const DOCK_MIN_X = -0.45, DOCK_MAX_X = 0.45;     // iskele genişliği içinde
+const DOCK_MIN_Z = -12.5, DOCK_MAX_Z = 0.3;      // kıyıdan suya doğru
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 class Game {
   constructor() {
@@ -13,9 +20,14 @@ class Game {
     this.world = new World(canvas);
     this.save = loadSave();
     this.sfx = sfx;
-    this.rng = Math.random;
     this.pond = new FishPond(this.world.scene, () => Math.random());
     this.ui = new UI(this);
+
+    // Oyuncu: iskelede yürür. x/z dünya konumu, aim nişan açısı.
+    this.player = { x: 0, z: DOCK.standZ - 0.3, aim: 0 };
+    this.camAim = 0;
+    this.avatar = buildAvatar(this.world.scene);
+
     this.fishing = new Fishing(this);
     this.input = createInput(canvas);
     this.inputState = this.input.state;
@@ -25,6 +37,13 @@ class Game {
       down: (st, src) => this.fishing.onDown(st, src),
       up: (st, src) => this.fishing.onUp(st, src),
     });
+
+    // Ekran butonları: yön (basılı tut) ve eylem
+    document.querySelectorAll('[data-hold]').forEach((el) => {
+      const name = el.dataset.hold;
+      bindHold(el, (on) => { this.inputState.btn[name] = on; });
+    });
+    bindHold(document.getElementById('action-btn'), (on) => this.input.pressAction(on));
 
     this.world.setTime(this.save.hour ?? START_HOUR);
     setEnabled(this.save.sound);
@@ -51,7 +70,7 @@ class Game {
     unlock();
     this.started = true;
     this.ui.closeModal();
-    this.toast('Aşağı çek ve bırak → olta atılır.');
+    this.toast('Sol alttaki yön tuşlarıyla iskelede yürü. AT ile at.');
     this.ui.updateHud();
   }
 
@@ -61,7 +80,10 @@ class Game {
     this.t += dt;
 
     this.world.update(dt, this.t);
+    this.updatePlayer(dt);
     this.fishing.update(dt, this.t);
+    this.avatar.setPose(this.player, this.t, this.moving);
+    this.updateCamera(dt);
     setRain(this.world.rainAmount);
 
     if (now - this._lastHud > 250) { this.ui.updateHud(); this._lastHud = now; }
@@ -69,6 +91,37 @@ class Game {
 
     this.world.render();
     requestAnimationFrame((n) => this.frame(n));
+  }
+
+  // Yürüme: sadece olta boştayken. Ekran butonları veya WASD.
+  updatePlayer(dt) {
+    const st = this.inputState;
+    const b = st.btn, k = st.kb;
+    st.btnAim = (b.aimR ? 1 : 0) - (b.aimL ? 1 : 0);
+
+    const free = this.fishing.phase === 'idle' && !this.fishing.pulling && !this.ui.isModalOpen();
+    let mx = 0, mz = 0;
+    if (free) {
+      mx = ((b.right || k.right) ? 1 : 0) - ((b.left || k.left) ? 1 : 0);
+      mz = ((b.back || k.back) ? 1 : 0) - ((b.fwd || k.fwd) ? 1 : 0);
+    }
+    const len = Math.hypot(mx, mz) || 1;
+    const step = WALK_SPEED * dt / len;
+    const p = this.player;
+    p.x = clamp(p.x + mx * step, DOCK_MIN_X, DOCK_MAX_X);
+    p.z = clamp(p.z + mz * step, DOCK_MIN_Z, DOCK_MAX_Z);
+    this.moving = mx !== 0 || mz !== 0;
+  }
+
+  // Kamera karakterin arkasında, nişan yönüne bakar
+  updateCamera(dt) {
+    const p = this.player;
+    this.camAim += (p.aim - this.camAim) * Math.min(1, dt * 5);
+    const sa = Math.sin(this.camAim), ca = Math.cos(this.camAim);
+    const cam = this.world.camera;
+    const back = 7.5, height = 3.6;
+    cam.position.set(p.x - sa * back, 0.96 + height, p.z + ca * back);
+    cam.lookAt(p.x + sa * 18, 0.4, p.z - ca * 18);
   }
 
   persist() {

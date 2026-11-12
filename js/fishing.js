@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { DOCK, RODS, BAITS, WEATHER, MAX_BAG, timeBucket } from './config.js';
+import { ARM_POSE } from './avatar.js';
+
+// İğne ucunun karakterin önünde olduğu mesafe (m). Atış buradan başlar.
+const ROD_REACH = 1.8;
 
 // Oyunun çekirdeği: atış -> bekleme -> ısırık -> makara mücadelesi -> yakalama.
 // Fazlar: idle, casting, waiting, nibble, bite, fight, catch, snapped
@@ -47,10 +51,10 @@ export class Fishing {
 
   // ---------- Görsel inşa ----------
   _buildRod() {
-    const cam = this.world.camera;
+    // Olta karakterin sağ elinde. Kol pozunu iptal edip olta düz öne bakar.
     this.rodRoot = new THREE.Group();
-    this.rodRoot.position.set(0.42, -0.42, -0.75);
-    cam.add(this.rodRoot);
+    this.rodRoot.rotation.x = -ARM_POSE;
+    this.g.avatar.hand.add(this.rodRoot);
     this.pivot = new THREE.Group();
     this.rodRoot.add(this.pivot);
 
@@ -155,7 +159,11 @@ export class Fishing {
   // ---------- Yardımcılar ----------
   get rod() { return RODS[this.g.save.rod]; }
 
-  _dockPoint() { return new THREE.Vector3(DOCK.tip.x, WATER_Y, DOCK.tip.z); }
+  // Atış noktası: oyuncunun önündeki olta ucunun iskeledeki konumu
+  _dockPoint() {
+    const p = this.g.player;
+    return new THREE.Vector3(p.x + Math.sin(this.aim) * ROD_REACH, WATER_Y, p.z - Math.cos(this.aim) * ROD_REACH);
+  }
 
   _dirFromAim(aim) { return new THREE.Vector3(Math.sin(aim), 0, -Math.cos(aim)); }
 
@@ -226,8 +234,9 @@ export class Fishing {
     const s = this.g.save;
     const dist = 6 + p * (this.rod.cast - 6);
     const dir = this._dirFromAim(this.aim);
-    const land = this._dockPoint().addScaledVector(dir, dist);
-    this.bait = { x: land.x, z: land.z, dist, dirX: dir.x, dirZ: dir.z, kind, retrieving: false };
+    const origin = this._dockPoint();
+    const land = origin.clone().addScaledVector(dir, dist);
+    this.bait = { x: land.x, z: land.z, dist, dirX: dir.x, dirZ: dir.z, kind, retrieving: false, ox: origin.x, oz: origin.z };
     if (BAITS[kind].consumable) s.baits[kind] -= 1;
     s.stats.casts += 1;
     this.g.persist();
@@ -258,7 +267,7 @@ export class Fishing {
       fish, kg, s: sp.strength * (0.7 + 0.3 * frac),
       d: b.dist, dMax: b.dist, t: 0, T: 0, strain: 0,
       surge: 0, surgeCool: 1.2 + Math.random(), ph: Math.random() * 10,
-      tire: 1, dirX: b.dirX, dirZ: b.dirZ, tick: 0,
+      tire: 1, dirX: b.dirX, dirZ: b.dirZ, ox: b.ox, oz: b.oz, tick: 0,
     };
     this.g.ui.showBite(false);
     this.g.ui.showFight(true);
@@ -275,9 +284,11 @@ export class Fishing {
     this.tip.getWorldPosition(this.tipWorld);
 
     if (this.phase === 'idle') {
-      if (st.aimKey && !this.pulling) {
-        this.aimBase = clamp(this.aimBase + st.aimKey * dt * 0.9, -MAX_AIM, MAX_AIM);
+      const aimDir = st.aimKey || st.btnAim || 0;
+      if (aimDir && !this.pulling) {
+        this.aimBase = clamp(this.aimBase + aimDir * dt * 0.9, -MAX_AIM, MAX_AIM);
       }
+      if (!this.pulling) this.aim = this.aimBase;
       if (this.pulling) {
         this._updatePull(dt, st);
         const dist = 6 + Math.max(0.05, this.pullValue) * (this.rod.cast - 6);
@@ -291,7 +302,7 @@ export class Fishing {
       } else {
         this.preview.visible = false;
         if (!this._pickBaitKind()) this._hint('Yemin bitti! Dükkândan yem al.');
-        else this._hint('Aşağı çek, bırak → at  ·  Klavye: Boşluk');
+        else this._hint('AT butonunu basılı tut, bırak  ·  Yön ile nişan al');
       }
     }
 
@@ -315,7 +326,21 @@ export class Fishing {
     }
 
     this.g.pond.update(dt, t, this.bait ? { x: this.bait.x, z: this.bait.z } : null);
+    this.g.player.aim = this.aim;
+    this.g.ui.setAction(this._actionLabel());
     this._updateVisuals(dt, t);
+  }
+
+  // Ekrandaki büyük eylem butonunun yazısı
+  _actionLabel() {
+    switch (this.phase) {
+      case 'idle': return this.pulling ? 'BIRAK' : 'AT';
+      case 'waiting': return 'ÇEK';
+      case 'nibble': return 'BEKLE';
+      case 'bite': return 'VUR!';
+      case 'fight': return 'MAKARA';
+      default: return '…';
+    }
   }
 
   _updateWaiting(dt, t, st) {
@@ -330,8 +355,8 @@ export class Fishing {
         this._reset();
         return;
       }
-      b.x = DOCK.tip.x + b.dirX * b.dist;
-      b.z = DOCK.tip.z + b.dirZ * b.dist;
+      b.x = b.ox + b.dirX * b.dist;
+      b.z = b.oz + b.dirZ * b.dist;
       this._hint('Sürükleniyor… bırak: yemi bırak');
     } else {
       b.retrieving = false;
@@ -552,7 +577,7 @@ export class Fishing {
     const swing = this.kick * 0.8;
     this.rodPitch += (pitchTarget - this.rodPitch) * Math.min(1, dt * 8);
     this.pivot.rotation.x = this.rodPitch - swing + this.jerk * 0.35;
-    this.rodRoot.rotation.y = (this.aim || this.aimBase) * 0.35;
+    this.rodRoot.rotation.y = 0;
 
     // İğne ve ip
     if (this.phase === 'casting') {
@@ -608,7 +633,7 @@ export class Fishing {
   }
 
   fishMouth(F) {
-    const dock = this._dockPoint();
+    const dock = { x: F.ox, z: F.oz };
     const d = F.d;
     const sway = Math.sin(F.t * 2.1 + F.ph) * (0.6 + 0.8 * F.s) * Math.min(1, d / 6);
     const px = -F.dirZ, pz = F.dirX;

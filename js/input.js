@@ -10,7 +10,8 @@ export function createInput(canvas) {
     downAt: 0,
     keyHeld: false,        // Boşluk veya ekran eylem butonu
     aimKey: 0,             // ok tuşları: -1 sol, +1 sağ
-    btnAim: 0,             // ekran Yön butonları (oyun tarafından hesaplanır)
+    btnAim: 0,             // sağ joystick yatay ekseni: -1..1 (nişan)
+    stickMove: { x: 0, y: 0 }, // sol joystick: x sağ(+)/sol(-), y aşağı(+)=geri
     kb: { left: false, right: false, fwd: false, back: false },   // WASD
     btn: { left: false, right: false, fwd: false, back: false, aimL: false, aimR: false }, // ekran butonları
     handlers: { down() {}, up() {}, key() {} },
@@ -100,6 +101,57 @@ export function createInput(canvas) {
       }
     },
   };
+}
+
+// Analog joystick (DualSense benzeri). Taban elemanı içinde bir "knob" hareket eder.
+// onChange(x, y): x,y ∈ [-1, 1]. y pozitif = aşağı (ekranda).
+export function bindStick(el, onChange) {
+  const knob = el.querySelector('.stick-knob');
+  let activeId = null;
+  let cx = 0, cy = 0, R = 60;
+  const DEAD = 0.14;
+
+  const show = (x, y) => {
+    knob.style.transform = `translate(calc(-50% + ${(x * R).toFixed(1)}px), calc(-50% + ${(y * R).toFixed(1)}px))`;
+  };
+  const measure = () => {
+    const r = el.getBoundingClientRect();
+    cx = r.left + r.width / 2;
+    cy = r.top + r.height / 2;
+    R = r.width / 2 - 34;
+  };
+  const update = (e) => {
+    let x = (e.clientX - cx) / R;
+    let y = (e.clientY - cy) / R;
+    const len = Math.hypot(x, y);
+    if (len > 1) { x /= len; y /= len; }
+    if (len < DEAD) { x = 0; y = 0; }
+    show(x, y);
+    onChange(x, y);
+  };
+  const press = (e) => {
+    if (activeId !== null) return;
+    activeId = e.pointerId;
+    try { el.setPointerCapture(e.pointerId); } catch (_) { /* yoksay */ }
+    measure();
+    el.classList.add('on');
+    update(e);
+    e.preventDefault();
+  };
+  const move = (e) => { if (e.pointerId === activeId) update(e); };
+  const release = (e) => {
+    if (activeId === null || (e && e.pointerId !== activeId)) return;
+    activeId = null;
+    el.classList.remove('on');
+    show(0, 0);
+    onChange(0, 0);
+  };
+  el.addEventListener('pointerdown', press);
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', release);
+  el.addEventListener('pointercancel', release);
+  el.addEventListener('lostpointercapture', release);
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
 }
 
 // Basılı tutulan ekran butonu: parmak basınca on(true), kalkınca on(false).

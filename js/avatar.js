@@ -5,11 +5,11 @@ import { DOCK } from './config.js';
 export const ARM_POSE = 1.0;
 
 const mats = {
-  cloth: new THREE.MeshLambertMaterial({ color: 0x3f7a4a, flatShading: true }),
-  pants: new THREE.MeshLambertMaterial({ color: 0x2d3e5c, flatShading: true }),
-  skin: new THREE.MeshLambertMaterial({ color: 0xf0c39a, flatShading: true }),
-  hat: new THREE.MeshLambertMaterial({ color: 0x7a5530, flatShading: true }),
-  boot: new THREE.MeshLambertMaterial({ color: 0x2a2220, flatShading: true }),
+  cloth: new THREE.MeshStandardMaterial({ color: 0x3f7a4a, roughness: 0.9 }),
+  pants: new THREE.MeshStandardMaterial({ color: 0x2d3e5c, roughness: 0.92 }),
+  skin: new THREE.MeshStandardMaterial({ color: 0xe8b98f, roughness: 0.6 }),
+  hat: new THREE.MeshStandardMaterial({ color: 0x7a5530, roughness: 0.85 }),
+  boot: new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 0.5 }),
 };
 
 // Düşük poligonlu balıkçı. root: iskelede duran karakter. hand: olta tutulan nokta.
@@ -62,6 +62,10 @@ export function buildAvatar(scene) {
   hand.position.set(0, -0.62, 0);
   rightShoulder.add(hand);
   root.add(rightShoulder);
+
+  // Tüm parçalar gölge atar
+  root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  rightShoulder.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 
   const baseY = DOCK.deckY + 0.06;
   let breathT = 0;

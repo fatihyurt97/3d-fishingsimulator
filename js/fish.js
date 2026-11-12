@@ -12,7 +12,8 @@ const GEO = {
 const matCache = new Map();
 function mat(color) {
   if (!matCache.has(color)) {
-    matCache.set(color, new THREE.MeshLambertMaterial({ color, flatShading: true }));
+    // Balık: hafif parlak, pullu yüzey
+    matCache.set(color, new THREE.MeshStandardMaterial({ color, roughness: 0.32, metalness: 0.15 }));
   }
   return matCache.get(color);
 }

@@ -2,7 +2,7 @@ import { World } from './world.js';
 import { FishPond } from './fish.js';
 import { Fishing } from './fishing.js';
 import { UI } from './ui.js';
-import { createInput, bindHold } from './input.js';
+import { createInput, bindStick, bindHold } from './input.js';
 import { buildAvatar } from './avatar.js';
 import { loadSave, writeSave, clearSave, hasSave, defaultSave } from './save.js';
 import { sfx, unlock, setEnabled, setRain } from './audio.js';
@@ -38,11 +38,9 @@ class Game {
       up: (st, src) => this.fishing.onUp(st, src),
     });
 
-    // Ekran butonları: yön (basılı tut) ve eylem
-    document.querySelectorAll('[data-hold]').forEach((el) => {
-      const name = el.dataset.hold;
-      bindHold(el, (on) => { this.inputState.btn[name] = on; });
-    });
+    // Ekran kontrolleri: sol joystick yürür, sağ joystick nişan verir, AT eylemi
+    bindStick(document.getElementById('stick-move'), (x, y) => { this.inputState.stickMove = { x, y }; });
+    bindStick(document.getElementById('stick-aim'), (x) => { this.inputState.btnAim = x; });
     bindHold(document.getElementById('action-btn'), (on) => this.input.pressAction(on));
 
     this.world.setTime(this.save.hour ?? START_HOUR);
@@ -96,21 +94,22 @@ class Game {
   // Yürüme: sadece olta boştayken. Ekran butonları veya WASD.
   updatePlayer(dt) {
     const st = this.inputState;
-    const b = st.btn, k = st.kb;
-    st.btnAim = (b.aimR ? 1 : 0) - (b.aimL ? 1 : 0);
+    const k = st.kb;
+    const s = st.stickMove;
 
     const free = this.fishing.phase === 'idle' && !this.fishing.pulling && !this.ui.isModalOpen();
     let mx = 0, mz = 0;
     if (free) {
-      mx = ((b.right || k.right) ? 1 : 0) - ((b.left || k.left) ? 1 : 0);
-      mz = ((b.back || k.back) ? 1 : 0) - ((b.fwd || k.fwd) ? 1 : 0);
+      // Joystick analog (0..1 şiddet), klavye tam hız
+      mx = s.x + ((k.right ? 1 : 0) - (k.left ? 1 : 0));
+      mz = s.y + ((k.back ? 1 : 0) - (k.fwd ? 1 : 0));
+      const m = Math.hypot(mx, mz);
+      if (m > 1) { mx /= m; mz /= m; }
     }
-    const len = Math.hypot(mx, mz) || 1;
-    const step = WALK_SPEED * dt / len;
     const p = this.player;
-    p.x = clamp(p.x + mx * step, DOCK_MIN_X, DOCK_MAX_X);
-    p.z = clamp(p.z + mz * step, DOCK_MIN_Z, DOCK_MAX_Z);
-    this.moving = mx !== 0 || mz !== 0;
+    p.x = clamp(p.x + mx * WALK_SPEED * dt, DOCK_MIN_X, DOCK_MAX_X);
+    p.z = clamp(p.z + mz * WALK_SPEED * dt, DOCK_MIN_Z, DOCK_MAX_Z);
+    this.moving = Math.hypot(mx, mz) > 0.05;
   }
 
   // Kamera karakterin arkasında, nişan yönüne bakar

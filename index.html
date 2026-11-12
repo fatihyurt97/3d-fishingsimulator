@@ -39,22 +39,20 @@
       <span id="bait-count">× 15</span>
     </button>
 
-    <!-- Yürüme tuşları (basılı tut) -->
-    <div class="dpad">
-      <button class="ctl up" data-hold="fwd" aria-label="İleri">İleri<small>göle doğru</small></button>
-      <button class="ctl left" data-hold="left" aria-label="Sol">◀ Sol</button>
-      <button class="ctl right" data-hold="right" aria-label="Sağ">Sağ ▶</button>
-      <button class="ctl down" data-hold="back" aria-label="Geri">Geri<small>kıyıya</small></button>
+    <!-- Sol joystick: yürüme -->
+    <div class="stick stick-left" id="stick-move" aria-label="Yürüme joystick'i">
+      <div class="stick-base"><div class="stick-knob"></div></div>
+      <span class="stick-label">Yürü</span>
     </div>
 
-    <!-- Nişan ve eylem -->
-    <div class="actions">
-      <div class="aim-col">
-        <button class="ctl aim" data-hold="aimL" aria-label="Yönü sola çevir">◀ Yön</button>
-        <button class="ctl aim" data-hold="aimR" aria-label="Yönü sağa çevir">Yön ▶</button>
-      </div>
-      <button class="action" id="action-btn" aria-label="Eylem">AT</button>
+    <!-- Sağ joystick: nişan -->
+    <div class="stick stick-right" id="stick-aim" aria-label="Yön joystick'i">
+      <div class="stick-base"><div class="stick-knob"></div></div>
+      <span class="stick-label">Yön (sağ-sol)</span>
     </div>
+
+    <!-- Eylem: basılı tut = güç, bırak = at / vur / makara -->
+    <button class="action" id="action-btn" aria-label="Eylem">AT</button>
 
     <div id="pull" class="pull">
       <div class="pull-track"><div id="pull-fill"></div></div>
